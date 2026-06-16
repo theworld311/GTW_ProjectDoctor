@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "Project Doctor",
+	"Description": "Asset quality scanner for Unreal Engine projects. Detects naming violations, missing LODs, broken assets, texture issues, Blueprint compile errors, and more — all from a single dockable panel.",
+	"Category": "Editor",
+	"CreatedBy": "GTW",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EngineVersion": "5.4.0",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "ProjectDoctor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
