@@ -29,6 +29,7 @@ public class ProjectDoctor : ModuleRules
 			"AssetRegistry",
 			"PythonScriptPlugin",
 			"DesktopPlatform",
+			"Projects",
 		});
 	}
 }

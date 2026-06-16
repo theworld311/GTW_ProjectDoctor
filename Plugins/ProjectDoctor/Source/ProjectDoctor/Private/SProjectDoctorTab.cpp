@@ -3,6 +3,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/FileManager.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Serialization/JsonReader.h"
@@ -11,22 +12,21 @@
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
 #include "IPythonScriptPlugin.h"
+#include "Editor.h"
 
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
-#include "DesktopPlatformModule.h"
 
 #define LOCTEXT_NAMESPACE "ProjectDoctorTab"
 
-// Column IDs
 static const FName Col_Severity(TEXT("Severity"));
 static const FName Col_Rule(TEXT("Rule"));
 static const FName Col_Asset(TEXT("Asset"));
@@ -58,17 +58,18 @@ public:
 		else if (ColumnName == Col_Asset)    CellText = FText::FromString(Item->AssetPath);
 		else                                 CellText = FText::FromString(Item->Message);
 
-		TSharedRef<STextBlock> TextBlock = SNew(STextBlock)
+		bool bIsSeverity = (ColumnName == Col_Severity);
+
+		return SNew(SBox).Padding(FMargin(6.f, 3.f))
+		[
+			SNew(STextBlock)
 			.Text(CellText)
-			.ColorAndOpacity(ColumnName == Col_Severity ? ColorGetter(Item->Severity) : FSlateColor::UseForeground())
-			.Font(ColumnName == Col_Severity
+			.ColorAndOpacity(bIsSeverity ? ColorGetter(Item->Severity) : FSlateColor::UseForeground())
+			.Font(bIsSeverity
 				? FCoreStyle::GetDefaultFontStyle("Bold", 9)
 				: FCoreStyle::GetDefaultFontStyle("Regular", 9))
-			.ToolTipText(ColumnName == Col_Asset ? FText::FromString(Item->AssetPath) : FText::GetEmpty());
-
-		return SNew(SBox)
-			.Padding(FMargin(6.f, 3.f))
-			[TextBlock];
+			.ToolTipText(ColumnName == Col_Asset ? FText::FromString(Item->AssetPath) : FText::GetEmpty())
+		];
 	}
 
 private:
@@ -85,25 +86,15 @@ void SProjectDoctorTab::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 
-		// Toolbar
 		+ SVerticalBox::Slot().AutoHeight()
-		[
-			BuildToolbar()
-		]
+		[ BuildToolbar() ]
 
-		// Summary bar
 		+ SVerticalBox::Slot().AutoHeight()
-		[
-			BuildSummaryBar()
-		]
+		[ BuildSummaryBar() ]
 
-		// Filter bar
 		+ SVerticalBox::Slot().AutoHeight().Padding(6.f, 4.f)
-		[
-			BuildFilterBar()
-		]
+		[ BuildFilterBar() ]
 
-		// List
 		+ SVerticalBox::Slot().FillHeight(1.f)
 		[
 			SNew(SBorder)
@@ -118,15 +109,14 @@ void SProjectDoctorTab::Construct(const FArguments& InArgs)
 				.HeaderRow
 				(
 					SNew(SHeaderRow)
-					+ SHeaderRow::Column(Col_Severity).DefaultLabel(LOCTEXT("ColSev",  "Severity")).FixedWidth(70.f)
-					+ SHeaderRow::Column(Col_Rule)    .DefaultLabel(LOCTEXT("ColRule", "Rule"))    .FixedWidth(180.f)
-					+ SHeaderRow::Column(Col_Asset)   .DefaultLabel(LOCTEXT("ColAsset","Asset"))   .FillWidth(1.f)
-					+ SHeaderRow::Column(Col_Message) .DefaultLabel(LOCTEXT("ColMsg",  "Message")) .FillWidth(1.5f)
+					+ SHeaderRow::Column(Col_Severity).DefaultLabel(LOCTEXT("ColSev",   "Severity")).FixedWidth(70.f)
+					+ SHeaderRow::Column(Col_Rule)    .DefaultLabel(LOCTEXT("ColRule",  "Rule"))    .FixedWidth(180.f)
+					+ SHeaderRow::Column(Col_Asset)   .DefaultLabel(LOCTEXT("ColAsset", "Asset"))   .FillWidth(1.f)
+					+ SHeaderRow::Column(Col_Message) .DefaultLabel(LOCTEXT("ColMsg",   "Message")) .FillWidth(1.5f)
 				)
 			]
 		]
 
-		// Status bar
 		+ SVerticalBox::Slot().AutoHeight()
 		[
 			SNew(SBorder)
@@ -140,12 +130,11 @@ void SProjectDoctorTab::Construct(const FArguments& InArgs)
 		]
 	];
 
-	// Load last report if one exists
 	ReloadReport();
 }
 
 // -------------------------------------------------------------------------
-// UI builders
+// Toolbar
 // -------------------------------------------------------------------------
 TSharedRef<SWidget> SProjectDoctorTab::BuildToolbar()
 {
@@ -181,7 +170,6 @@ TSharedRef<SWidget> SProjectDoctorTab::BuildToolbar()
 				.OnClicked(this, &SProjectDoctorTab::OnRefreshClicked)
 			]
 
-			// Spacer
 			+ SHorizontalBox::Slot().FillWidth(1.f)
 
 			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
@@ -194,11 +182,14 @@ TSharedRef<SWidget> SProjectDoctorTab::BuildToolbar()
 		];
 }
 
+// -------------------------------------------------------------------------
+// Summary bar
+// -------------------------------------------------------------------------
 TSharedRef<SWidget> SProjectDoctorTab::BuildSummaryBar()
 {
 	auto MakeCard = [](const FText& Label, TAttribute<FText> Value, FLinearColor ValueColor) -> TSharedRef<SWidget>
 	{
-		return SNew(SBox).Padding(FMargin(10.f, 6.f))
+		return SNew(SBox).Padding(FMargin(12.f, 6.f))
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight()
@@ -221,71 +212,66 @@ TSharedRef<SWidget> SProjectDoctorTab::BuildSummaryBar()
 		.Padding(4.f)
 		[
 			SNew(SHorizontalBox)
+
 			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardScanned",  "Assets Scanned"),
+			[ MakeCard(LOCTEXT("CardScanned",   "Assets Scanned"),
 				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(ScannedAssets); }),
 				FLinearColor::White) ]
 
 			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardTotal", "Total Findings"),
+			[ MakeCard(LOCTEXT("CardTotal",     "Total Findings"),
 				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(AllFindings.Num()); }),
 				FLinearColor::White) ]
 
 			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardErrors", "Errors"),
+			[ MakeCard(LOCTEXT("CardErrors",    "Errors"),
 				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalErrors); }),
-				FLinearColor(1.f, 0.25f, 0.25f)) ]
+				FLinearColor(1.f, 0.3f, 0.3f)) ]
 
 			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardWarnings", "Warnings"),
+			[ MakeCard(LOCTEXT("CardWarnings",  "Warnings"),
 				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalWarnings); }),
-				FLinearColor(1.f, 0.65f, 0.15f)) ]
+				FLinearColor(1.f, 0.7f, 0.2f)) ]
 
 			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardInfo", "Info"),
+			[ MakeCard(LOCTEXT("CardInfo",      "Info"),
 				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalInfo); }),
-				FLinearColor(0.35f, 0.7f, 1.f)) ]
-
-			+ SHorizontalBox::Slot().FillWidth(1.f)
-
-			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(8.f, 0.f)
-			[
-				SNew(STextBlock)
-				.Text(this, &SProjectDoctorTab::GetSummaryText)
-				.Font(FCoreStyle::GetDefaultFontStyle("Italic", 9))
-				.ColorAndOpacity(FLinearColor(0.5f, 0.5f, 0.5f))
-			]
+				FLinearColor(0.4f, 0.8f, 1.f)) ]
 		];
 }
 
+// -------------------------------------------------------------------------
+// Filter bar
+// -------------------------------------------------------------------------
 TSharedRef<SWidget> SProjectDoctorTab::BuildFilterBar()
 {
-	auto MakeFilterBtn = [this](const FText& Label, FName Severity, FLinearColor ActiveColor) -> TSharedRef<SWidget>
-	{
-		return SNew(SButton)
-			.Text(Label)
-			.OnClicked_Lambda([this, Severity]() -> FReply
-			{
-				OnFilterChanged(Severity);
-				return FReply::Handled();
-			})
-			.ButtonColorAndOpacity_Lambda([this, Severity, ActiveColor]() -> FLinearColor
-			{
-				return (ActiveFilter == Severity) ? ActiveColor : FLinearColor(0.2f, 0.2f, 0.2f);
-			})
-			.ForegroundColor(FLinearColor::White)
-			.ContentPadding(FMargin(12.f, 3.f));
+	struct FFilterDef { FText Label; FName Severity; FLinearColor Color; };
+	TArray<FFilterDef> Filters = {
+		{ LOCTEXT("FilterAll",      "All"),      NAME_None,         FLinearColor(0.35f, 0.35f, 0.35f) },
+		{ LOCTEXT("FilterErrors",   "Errors"),   FName("Error"),    FLinearColor(0.6f,  0.1f,  0.1f)  },
+		{ LOCTEXT("FilterWarnings", "Warnings"), FName("Warning"),  FLinearColor(0.65f, 0.35f, 0.0f)  },
+		{ LOCTEXT("FilterInfo",     "Info"),     FName("Info"),     FLinearColor(0.1f,  0.35f, 0.65f) },
 	};
 
-	return SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
-		[ MakeFilterBtn(LOCTEXT("FilterAll",     "All"),      NAME_None,             FLinearColor(0.3f, 0.3f, 0.3f)) ]
-		+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
-		[ MakeFilterBtn(LOCTEXT("FilterErrors",  "Errors"),   FName("Error"),        FLinearColor(0.7f, 0.1f, 0.1f)) ]
-		+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
-		[ MakeFilterBtn(LOCTEXT("FilterWarnings","Warnings"), FName("Warning"),      FLinearColor(0.75f, 0.4f, 0.0f)) ]
-		+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
-		[ MakeFilterBtn(LOCTEXT("FilterInfo",   "Info"),      FName("Info"),         FLinearColor(0.1f, 0.4f, 0.75f)) ];
+	TSharedRef<SHorizontalBox> Bar = SNew(SHorizontalBox);
+	for (const FFilterDef& F : Filters)
+	{
+		FName Sev = F.Severity;
+		FLinearColor Col = F.Color;
+		Bar->AddSlot().AutoWidth().Padding(2.f, 0.f)
+		[
+			SNew(SButton)
+			.Text(F.Label)
+			.ContentPadding(FMargin(12.f, 3.f))
+			.OnClicked_Lambda([this, Sev]() -> FReply { OnFilterChanged(Sev); return FReply::Handled(); })
+			.ButtonColorAndOpacity_Lambda([this, Sev, Col]() -> FLinearColor
+			{
+				return (ActiveFilter == Sev) ? Col : FLinearColor(0.2f, 0.2f, 0.2f);
+			})
+			.ForegroundColor(FLinearColor::White)
+		];
+	}
+	return Bar;
 }
 
 // -------------------------------------------------------------------------
@@ -310,59 +296,60 @@ FReply SProjectDoctorTab::OnScanGameClicked()
 
 FReply SProjectDoctorTab::OnScanCustomClicked()
 {
-	// Simple input dialog via a small modal
-	TSharedRef<SEditableTextBox> InputBox = SNew(SEditableTextBox)
-		.Text(LOCTEXT("DefaultPath", "/Game/"))
-		.MinDesiredWidth(300.f);
+	TSharedPtr<SEditableTextBox> InputBox;
 
 	TSharedRef<SWindow> ModalWindow = SNew(SWindow)
 		.Title(LOCTEXT("CustomScanTitle", "Scan Custom Path"))
 		.SizingRule(ESizingRule::Autosized)
 		.SupportsMaximize(false)
-		.SupportsMinimize(false)
+		.SupportsMinimize(false);
+
+	TSharedRef<SWidget> Content =
+		SNew(SBox).Padding(16.f)
 		[
-			SNew(SBox).Padding(16.f)
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 8.f)
+				SNew(STextBlock).Text(LOCTEXT("CustomLabel", "Enter a /Game sub-path to scan:"))
+			]
+			+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 12.f)
+			[
+				SAssignNew(InputBox, SEditableTextBox)
+				.Text(LOCTEXT("DefaultPath", "/Game/"))
+				.MinDesiredWidth(300.f)
+			]
+			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(4.f, 0.f)
 				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("CustomScanLabel", "Enter a /Game sub-path to scan:"))
+					SNew(SButton)
+					.Text(LOCTEXT("ScanBtn", "Scan"))
+					.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
+					.ForegroundColor(FLinearColor::White)
+					.OnClicked_Lambda([this, &InputBox, &ModalWindow]() -> FReply
+					{
+						FString Path = InputBox.IsValid() ? InputBox->GetText().ToString() : TEXT("/Game");
+						ModalWindow->RequestDestroyWindow();
+						RunScan(Path, 5000);
+						return FReply::Handled();
+					})
 				]
-				+ SVerticalBox::Slot().AutoHeight().Padding(0.f, 0.f, 0.f, 12.f)
-				[ InputBox ]
-				+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Right)
+				+ SHorizontalBox::Slot().AutoWidth()
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot().AutoWidth().Padding(4.f, 0.f)
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("OK", "Scan"))
-						.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FLinearColor::White)
-						.OnClicked_Lambda([this, &InputBox, &ModalWindow]() -> FReply
-						{
-							FString Path = InputBox->GetText().ToString();
-							ModalWindow->RequestDestroyWindow();
-							RunScan(Path, 5000);
-							return FReply::Handled();
-						})
-					]
-					+ SHorizontalBox::Slot().AutoWidth()
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("Cancel", "Cancel"))
-						.OnClicked_Lambda([&ModalWindow]() -> FReply
-						{
-							ModalWindow->RequestDestroyWindow();
-							return FReply::Handled();
-						})
-					]
+					SNew(SButton)
+					.Text(LOCTEXT("CancelBtn", "Cancel"))
+					.OnClicked_Lambda([&ModalWindow]() -> FReply
+					{
+						ModalWindow->RequestDestroyWindow();
+						return FReply::Handled();
+					})
 				]
 			]
 		];
 
-	GEditor->EditorAddModalWindow(ModalWindow);
+	ModalWindow->SetContent(Content);
+	FSlateApplication::Get().AddModalWindow(ModalWindow, FSlateApplication::Get().GetActiveTopLevelWindow());
 	return FReply::Handled();
 }
 
@@ -370,7 +357,8 @@ FReply SProjectDoctorTab::OnOpenHtmlClicked()
 {
 	if (!LastHtmlPath.IsEmpty() && FPaths::FileExists(LastHtmlPath))
 	{
-		FPlatformProcess::LaunchURL(*FString::Printf(TEXT("file:///%s"), *LastHtmlPath), nullptr, nullptr);
+		FString Url = TEXT("file:///") + LastHtmlPath.Replace(TEXT("\\"), TEXT("/"));
+		FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
 	}
 	return FReply::Handled();
 }
@@ -391,7 +379,6 @@ void SProjectDoctorTab::OnFindingDoubleClicked(FProjectDoctorFindingPtr Item)
 {
 	if (!Item.IsValid()) return;
 
-	// Strip object path suffix (e.g. "/Game/Meshes/SM_Rock.SM_Rock" -> "/Game/Meshes/SM_Rock")
 	FString PackagePath = Item->AssetPath;
 	int32 DotIdx;
 	if (PackagePath.FindLastChar(TEXT('.'), DotIdx))
@@ -417,25 +404,27 @@ void SProjectDoctorTab::RunScan(const FString& RootPath, int32 MaxAssets)
 {
 	if (!IPythonScriptPlugin::Get()->IsPythonAvailable())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ProjectDoctor: Python is not available. Enable the Python Script Plugin."));
+		UE_LOG(LogTemp, Warning, TEXT("ProjectDoctor: Python Script Plugin is not available."));
 		return;
 	}
 
 	bScanning = true;
+	LastRootPath = RootPath;
 
 	const FString PluginPythonDir = FPaths::ConvertRelativePathToFull(
-		FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("ProjectDoctor/Content/Python")));
+		FPaths::Combine(FPaths::ProjectPluginsDir(), TEXT("ProjectDoctor/Content/Python/ProjectDoctor")));
+
+	FString NormalDir = PluginPythonDir.Replace(TEXT("\\"), TEXT("/"));
 
 	FString Command = FString::Printf(
-		TEXT("import sys, os; p=r'%s'; (sys.path.append(p) if p not in sys.path else None); "
-		     "import importlib, project_doctor; importlib.reload(project_doctor); "
-		     "project_doctor.scan_project(root_path='%s', max_assets=%d, export=True)"),
-		*PluginPythonDir, *RootPath, MaxAssets);
+		TEXT("import sys; p=r'%s'; (sys.path.append(p) if p not in sys.path else None); "
+			 "import importlib, project_doctor; importlib.reload(project_doctor); "
+			 "project_doctor.scan_project(root_path='%s', max_assets=%d, export=True)"),
+		*NormalDir, *RootPath, MaxAssets);
 
 	IPythonScriptPlugin::Get()->ExecPythonCommand(*Command);
 
 	bScanning = false;
-	LastRootPath = RootPath;
 	ReloadReport();
 }
 
@@ -462,18 +451,17 @@ void SProjectDoctorTab::ReloadReport()
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContent);
 	if (!FJsonSerializer::Deserialize(Reader, Root) || !Root.IsValid()) return;
 
-	// Summary
 	const TSharedPtr<FJsonObject>* SummaryObj;
 	if (Root->TryGetObjectField(TEXT("summary"), SummaryObj))
 	{
-		(*SummaryObj)->TryGetNumberField(TEXT("scanned_assets"), ScannedAssets);
-		(*SummaryObj)->TryGetNumberField(TEXT("errors"),         TotalErrors);
-		(*SummaryObj)->TryGetNumberField(TEXT("warnings"),       TotalWarnings);
-		(*SummaryObj)->TryGetNumberField(TEXT("info"),           TotalInfo);
-		(*SummaryObj)->TryGetStringField(TEXT("root_path"),      LastRootPath);
+		double Val = 0.0;
+		if ((*SummaryObj)->TryGetNumberField(TEXT("scanned_assets"), Val)) ScannedAssets = (int32)Val;
+		if ((*SummaryObj)->TryGetNumberField(TEXT("errors"),         Val)) TotalErrors   = (int32)Val;
+		if ((*SummaryObj)->TryGetNumberField(TEXT("warnings"),       Val)) TotalWarnings = (int32)Val;
+		if ((*SummaryObj)->TryGetNumberField(TEXT("info"),           Val)) TotalInfo     = (int32)Val;
+		(*SummaryObj)->TryGetStringField(TEXT("root_path"), LastRootPath);
 	}
 
-	// Findings
 	const TArray<TSharedPtr<FJsonValue>>* FindingsArr;
 	if (Root->TryGetArrayField(TEXT("findings"), FindingsArr))
 	{
@@ -491,12 +479,9 @@ void SProjectDoctorTab::ReloadReport()
 		}
 	}
 
-	// Derive HTML path from JSON path
-	LastHtmlPath = JsonPath.Replace(TEXT("latest_project_doctor_report.json"), TEXT("")) ;
-	// Try to find the most recent HTML
+	// Find latest HTML report in the same folder
 	TArray<FString> HtmlFiles;
-	IFileManager::Get().FindFiles(HtmlFiles,
-		*(FPaths::GetPath(JsonPath) / TEXT("*.html")), true, false);
+	IFileManager::Get().FindFiles(HtmlFiles, *(FPaths::GetPath(JsonPath) / TEXT("*.html")), true, false);
 	if (HtmlFiles.Num() > 0)
 	{
 		HtmlFiles.Sort();
@@ -535,15 +520,17 @@ FSlateColor SProjectDoctorTab::GetSeverityColor(const FString& Severity) const
 {
 	if (Severity == TEXT("Error"))   return FLinearColor(1.f, 0.3f, 0.3f);
 	if (Severity == TEXT("Warning")) return FLinearColor(1.f, 0.7f, 0.2f);
-	return FLinearColor(0.5f, 0.8f, 1.f);
+	return FLinearColor(0.4f, 0.8f, 1.f);
 }
 
 FText SProjectDoctorTab::GetStatusText() const
 {
-	if (bScanning) return LOCTEXT("Scanning", "Scanning...");
-	if (AllFindings.Num() == 0) return LOCTEXT("NoReport", "No report loaded. Click 'Scan /Game' to get started.");
+	if (bScanning)
+		return LOCTEXT("Scanning", "Scanning... please wait.");
+	if (AllFindings.Num() == 0)
+		return LOCTEXT("NoReport", "No report loaded. Click 'Scan /Game' to get started.");
 	return FText::Format(
-		LOCTEXT("Status", "Showing {0} of {1} findings  |  Root: {2}"),
+		LOCTEXT("Status", "Showing {0} of {1} findings  |  Root: {2}  |  Double-click to locate in Content Browser"),
 		FText::AsNumber(FilteredFindings.Num()),
 		FText::AsNumber(AllFindings.Num()),
 		FText::FromString(LastRootPath));
@@ -551,9 +538,7 @@ FText SProjectDoctorTab::GetStatusText() const
 
 FText SProjectDoctorTab::GetSummaryText() const
 {
-	if (AllFindings.Num() == 0) return FText::GetEmpty();
-	return FText::Format(LOCTEXT("SummaryHint", "Double-click a finding to locate it in the Content Browser."),
-		FText::AsNumber(AllFindings.Num()));
+	return FText::GetEmpty();
 }
 
 #undef LOCTEXT_NAMESPACE
