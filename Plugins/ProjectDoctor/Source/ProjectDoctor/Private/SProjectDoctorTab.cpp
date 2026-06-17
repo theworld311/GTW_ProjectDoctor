@@ -179,6 +179,16 @@ TSharedRef<SWidget> SProjectDoctorTab::BuildToolbar()
 				.OnClicked(this, &SProjectDoctorTab::OnRefreshClicked)
 			]
 
+			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("Clear", "Clear"))
+				.ToolTipText(LOCTEXT("ClearTip", "Clear all results from the panel"))
+				.OnClicked(this, &SProjectDoctorTab::OnClearClicked)
+				.ButtonStyle(FAppStyle::Get(), "FlatButton.Danger")
+				.ForegroundColor(FLinearColor::White)
+			]
+
 			+ SHorizontalBox::Slot().FillWidth(1.f)
 
 			+ SHorizontalBox::Slot().AutoWidth().Padding(2.f, 0.f)
@@ -352,6 +362,18 @@ FReply SProjectDoctorTab::OnOpenHtmlClicked()
 		FString Url = TEXT("file:///") + LastHtmlPath.Replace(TEXT("\\"), TEXT("/"));
 		FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
 	}
+	return FReply::Handled();
+}
+
+FReply SProjectDoctorTab::OnClearClicked()
+{
+	AllFindings.Empty();
+	FilteredFindings.Empty();
+	TotalErrors = TotalWarnings = TotalInfo = ScannedAssets = 0;
+	LastHtmlPath.Empty();
+	LastRootPath.Empty();
+	ActiveFilter = NAME_None;
+	if (ListView.IsValid()) ListView->RequestListRefresh();
 	return FReply::Handled();
 }
 
