@@ -82,55 +82,64 @@ private:
 // -------------------------------------------------------------------------
 void SProjectDoctorTab::Construct(const FArguments& InArgs)
 {
-	ChildSlot
-	[
-		SNew(SVerticalBox)
+	SAssignNew(ListView, SListView<FProjectDoctorFindingPtr>)
+		.ListItemsSource(&FilteredFindings)
+		.OnGenerateRow(this, &SProjectDoctorTab::GenerateRow)
+		.OnMouseButtonDoubleClick(this, &SProjectDoctorTab::OnFindingDoubleClicked)
+		.SelectionMode(ESelectionMode::Single)
+		.HeaderRow
+		(
+			SNew(SHeaderRow)
+			+ SHeaderRow::Column(Col_Severity).DefaultLabel(LOCTEXT("ColSev",   "Severity")).FixedWidth(70.f)
+			+ SHeaderRow::Column(Col_Rule)    .DefaultLabel(LOCTEXT("ColRule",  "Rule"))    .FixedWidth(180.f)
+			+ SHeaderRow::Column(Col_Asset)   .DefaultLabel(LOCTEXT("ColAsset", "Asset"))   .FillWidth(1.f)
+			+ SHeaderRow::Column(Col_Message) .DefaultLabel(LOCTEXT("ColMsg",   "Message")) .FillWidth(1.5f)
+		);
 
-		+ SVerticalBox::Slot().AutoHeight()
-		[ BuildToolbar() ]
+	SAssignNew(StatusText, STextBlock)
+		.Text(this, &SProjectDoctorTab::GetStatusText)
+		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9));
 
-		+ SVerticalBox::Slot().AutoHeight()
-		[ BuildSummaryBar() ]
+	TSharedRef<SVerticalBox> VBox = SNew(SVerticalBox);
 
-		+ SVerticalBox::Slot().AutoHeight().Padding(6.f, 4.f)
-		[ BuildFilterBar() ]
+	VBox->AddSlot()
+		.AutoHeight()
+		[ BuildToolbar() ];
 
-		+ SVerticalBox::Slot().FillHeight(1.f)
+	VBox->AddSlot()
+		.AutoHeight()
+		[ BuildSummaryBar() ];
+
+	VBox->AddSlot()
+		.AutoHeight()
+		.Padding(6.f, 4.f)
+		[ BuildFilterBar() ];
+
+	VBox->AddSlot()
+		.FillHeight(1.f)
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(2.f)
-			[
-				SAssignNew(ListView, SListView<FProjectDoctorFindingPtr>)
-				.ListItemsSource(&FilteredFindings)
-				.OnGenerateRow(this, &SProjectDoctorTab::GenerateRow)
-				.OnMouseButtonDoubleClick(this, &SProjectDoctorTab::OnFindingDoubleClicked)
-				.SelectionMode(ESelectionMode::Single)
-				.HeaderRow
-				(
-					SNew(SHeaderRow)
-					+ SHeaderRow::Column(Col_Severity).DefaultLabel(LOCTEXT("ColSev",   "Severity")).FixedWidth(70.f)
-					+ SHeaderRow::Column(Col_Rule)    .DefaultLabel(LOCTEXT("ColRule",  "Rule"))    .FixedWidth(180.f)
-					+ SHeaderRow::Column(Col_Asset)   .DefaultLabel(LOCTEXT("ColAsset", "Asset"))   .FillWidth(1.f)
-					+ SHeaderRow::Column(Col_Message) .DefaultLabel(LOCTEXT("ColMsg",   "Message")) .FillWidth(1.5f)
-				)
-			]
-		]
+			[ ListView.ToSharedRef() ]
+		];
 
-		+ SVerticalBox::Slot().AutoHeight()
+	VBox->AddSlot()
+		.AutoHeight()
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("StatusBar.Background"))
 			.Padding(FMargin(8.f, 3.f))
-			[
-				SAssignNew(StatusText, STextBlock)
-				.Text(this, &SProjectDoctorTab::GetStatusText)
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
-			]
-		]
-	];
+			[ StatusText.ToSharedRef() ]
+		];
 
-	ReloadReport();
+	ChildSlot[ VBox ];
+
+	// Only load if a report already exists for THIS project
+	if (FPaths::FileExists(GetLatestJsonPath()))
+	{
+		ReloadReport();
+	}
 }
 
 // -------------------------------------------------------------------------
@@ -189,55 +198,38 @@ TSharedRef<SWidget> SProjectDoctorTab::BuildSummaryBar()
 {
 	auto MakeCard = [](const FText& Label, TAttribute<FText> Value, FLinearColor ValueColor) -> TSharedRef<SWidget>
 	{
-		return SNew(SBox).Padding(FMargin(12.f, 6.f))
+		TSharedRef<SVerticalBox> CardBox = SNew(SVerticalBox);
+		CardBox->AddSlot().AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				SNew(STextBlock).Text(Label)
-				.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
-				.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
-			]
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				SNew(STextBlock).Text(Value)
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
-				.ColorAndOpacity(ValueColor)
-			]
+			SNew(STextBlock).Text(Label)
+			.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+			.ColorAndOpacity(FLinearColor(0.6f, 0.6f, 0.6f))
 		];
+		CardBox->AddSlot().AutoHeight()
+		[
+			SNew(STextBlock).Text(Value)
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+			.ColorAndOpacity(ValueColor)
+		];
+		return SNew(SBox).Padding(FMargin(12.f, 6.f))[ CardBox ];
 	};
+
+	TSharedRef<SHorizontalBox> HBox = SNew(SHorizontalBox);
+	HBox->AddSlot().AutoWidth()[ MakeCard(LOCTEXT("CardScanned",  "Assets Scanned"),
+		TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(ScannedAssets); }), FLinearColor::White) ];
+	HBox->AddSlot().AutoWidth()[ MakeCard(LOCTEXT("CardTotal",    "Total Findings"),
+		TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(AllFindings.Num()); }), FLinearColor::White) ];
+	HBox->AddSlot().AutoWidth()[ MakeCard(LOCTEXT("CardErrors",   "Errors"),
+		TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalErrors); }), FLinearColor(1.f, 0.3f, 0.3f)) ];
+	HBox->AddSlot().AutoWidth()[ MakeCard(LOCTEXT("CardWarnings", "Warnings"),
+		TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalWarnings); }), FLinearColor(1.f, 0.7f, 0.2f)) ];
+	HBox->AddSlot().AutoWidth()[ MakeCard(LOCTEXT("CardInfo",     "Info"),
+		TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalInfo); }), FLinearColor(0.4f, 0.8f, 1.f)) ];
 
 	return SNew(SBorder)
 		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 		.Padding(4.f)
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardScanned",   "Assets Scanned"),
-				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(ScannedAssets); }),
-				FLinearColor::White) ]
-
-			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardTotal",     "Total Findings"),
-				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(AllFindings.Num()); }),
-				FLinearColor::White) ]
-
-			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardErrors",    "Errors"),
-				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalErrors); }),
-				FLinearColor(1.f, 0.3f, 0.3f)) ]
-
-			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardWarnings",  "Warnings"),
-				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalWarnings); }),
-				FLinearColor(1.f, 0.7f, 0.2f)) ]
-
-			+ SHorizontalBox::Slot().AutoWidth()
-			[ MakeCard(LOCTEXT("CardInfo",      "Info"),
-				TAttribute<FText>::CreateLambda([this]{ return FText::AsNumber(TotalInfo); }),
-				FLinearColor(0.4f, 0.8f, 1.f)) ]
-		];
+		[ HBox ];
 }
 
 // -------------------------------------------------------------------------
@@ -365,7 +357,15 @@ FReply SProjectDoctorTab::OnOpenHtmlClicked()
 
 FReply SProjectDoctorTab::OnRefreshClicked()
 {
-	ReloadReport();
+	if (FPaths::FileExists(GetLatestJsonPath()))
+	{
+		AllFindings.Empty();
+		ReloadReport();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ProjectDoctor: No report found for this project. Run a scan first."));
+	}
 	return FReply::Handled();
 }
 
