@@ -46,6 +46,7 @@ private:
 	FReply OnScanCustomClicked();
 	FReply OnOpenHtmlClicked();
 	FReply OnRefreshClicked();
+	FReply OnClearClicked();
 	void   OnFilterChanged(FName Severity);
 	void   OnFindingDoubleClicked(FProjectDoctorFindingPtr Item);
 
