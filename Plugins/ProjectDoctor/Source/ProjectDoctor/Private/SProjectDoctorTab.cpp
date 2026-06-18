@@ -359,8 +359,14 @@ FReply SProjectDoctorTab::OnOpenHtmlClicked()
 {
 	if (!LastHtmlPath.IsEmpty() && FPaths::FileExists(LastHtmlPath))
 	{
-		FString Url = TEXT("file:///") + LastHtmlPath.Replace(TEXT("\\"), TEXT("/"));
+		FString FullPath = FPaths::ConvertRelativePathToFull(LastHtmlPath);
+		FullPath = FullPath.Replace(TEXT("\\"), TEXT("/"));
+		FString Url = FString::Printf(TEXT("file:///%s"), *FullPath);
 		FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ProjectDoctor: No HTML report found. Run a scan first."));
 	}
 	return FReply::Handled();
 }
