@@ -53,6 +53,10 @@
 		{
 			"Name": "ProjectDoctor",
 			"Enabled": true
+		},
+		{
+			"Name": "AIAssetNamer",
+			"Enabled": true
 		}
 	]
 }

@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "AI Asset Namer",
+	"Description": "Rename Unreal Engine assets automatically using AI. Suggests correct naming conventions (SM_, T_, M_, BP_, etc.) for any selected asset or folder — powered by Claude or OpenAI.",
+	"Category": "Editor",
+	"CreatedBy": "GTW Dev",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"EnabledByDefault": false,
+	"Modules": [
+		{
+			"Name": "AIAssetNamer",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	]
+}
