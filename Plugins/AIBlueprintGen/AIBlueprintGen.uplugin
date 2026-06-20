@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0.0",
+	"FriendlyName": "AI Blueprint Generator",
+	"Description": "Generate complete Unreal Engine Blueprints from natural language descriptions using Claude or OpenAI. Describe what you want and the AI creates the Blueprint automatically in your project.",
+	"Category": "Editor",
+	"CreatedBy": "GTW Dev",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"EnabledByDefault": false,
+	"Modules": [
+		{
+			"Name": "AIBlueprintGen",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
+		}
+	]
+}
