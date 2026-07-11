@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "ProjectDoctorModule.h"
 #include "SProjectDoctorTab.h"
 

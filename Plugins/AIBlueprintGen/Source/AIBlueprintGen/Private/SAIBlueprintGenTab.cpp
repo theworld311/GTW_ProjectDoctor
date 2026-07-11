@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "SAIBlueprintGenTab.h"
 #include "AIBlueprintGenSettings.h"
 
@@ -455,7 +457,8 @@ void SAIBlueprintGenTab::SendToAI()
 	}
 
 	Request->SetContentAsString(RequestBody);
-	Request->OnProcessRequestComplete().BindRaw(this, &SAIBlueprintGenTab::OnAIResponseReceived);
+	// BindSP: callback so dispara se a aba ainda existir (evita crash se o usuario fechar durante o pedido)
+	Request->OnProcessRequestComplete().BindSP(SharedThis(this), &SAIBlueprintGenTab::OnAIResponseReceived);
 	Request->ProcessRequest();
 }
 

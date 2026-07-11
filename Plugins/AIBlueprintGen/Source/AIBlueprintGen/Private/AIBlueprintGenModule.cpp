@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "AIBlueprintGenModule.h"
 #include "SAIBlueprintGenTab.h"
 #include "AIBlueprintGenSettings.h"

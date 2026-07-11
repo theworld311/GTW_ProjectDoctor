@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "SAIAssetNamerTab.h"
 #include "AIAssetNamerSettings.h"
 
@@ -55,6 +57,24 @@ static TMap<FString, FString> GetPrefixMap()
 	M.Add(TEXT("NiagaraSystem"),      TEXT("NS_"));
 	M.Add(TEXT("NiagaraEmitter"),     TEXT("NE_"));
 	return M;
+}
+
+// -------------------------------------------------------------------------
+// Sanitize AI-suggested names: keep only characters valid in asset names
+// (also prevents breaking the generated Python rename script)
+// -------------------------------------------------------------------------
+static FString SanitizeAssetName(const FString& In)
+{
+	FString Out;
+	Out.Reserve(In.Len());
+	for (TCHAR C : In)
+	{
+		if (FChar::IsAlnum(C) || C == TEXT('_') || C == TEXT('-'))
+		{
+			Out.AppendChar(C);
+		}
+	}
+	return Out;
 }
 
 // -------------------------------------------------------------------------
@@ -633,7 +653,8 @@ void SAIAssetNamerTab::SendBatchToAI()
 	}
 
 	Request->SetContentAsString(RequestBody);
-	Request->OnProcessRequestComplete().BindRaw(this, &SAIAssetNamerTab::OnAIResponseReceived);
+	// BindSP: callback so dispara se a aba ainda existir (evita crash se o usuario fechar durante o pedido)
+	Request->OnProcessRequestComplete().BindSP(SharedThis(this), &SAIAssetNamerTab::OnAIResponseReceived);
 	Request->ProcessRequest();
 }
 
@@ -743,6 +764,7 @@ void SAIAssetNamerTab::ParseAIResponse(const FString& JsonBody)
 		(*ObjPtr)->TryGetStringField(TEXT("suggested"), Suggested);
 
 		int32 Idx = (int32)IdxDouble;
+		Suggested = SanitizeAssetName(Suggested);
 		if (Suggestions.IsValidIndex(Idx) && !Suggested.IsEmpty())
 		{
 			Suggestions[Idx]->SuggestedName = Suggested;

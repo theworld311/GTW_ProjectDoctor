@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "AIAssetNamerModule.h"
 #include "SAIAssetNamerTab.h"
 #include "AIAssetNamerSettings.h"

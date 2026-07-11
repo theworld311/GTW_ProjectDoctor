@@ -1,3 +1,4 @@
+# Copyright (c) 2026 GTW Dev. All Rights Reserved.
 
 import csv
 import json

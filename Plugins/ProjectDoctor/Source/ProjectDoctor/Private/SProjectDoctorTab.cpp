@@ -1,3 +1,5 @@
+// Copyright (c) 2026 GTW Dev. All Rights Reserved.
+
 #include "SProjectDoctorTab.h"
 
 #include "Misc/Paths.h"
