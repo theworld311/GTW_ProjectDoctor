@@ -45,6 +45,53 @@ Suggested names are sanitized to valid asset-name characters before being applie
 
 ---
 
+---
+
+## Frequently Asked Questions
+
+**Q: Will this rename ALL my assets?**  
+A: No. You load specific assets or folders, review every suggestion, and uncheck anything you don't want renamed. Nothing happens without your approval.
+
+**Q: What if the AI suggests a bad name?**  
+A: You see all suggestions before applying. Uncheck bad ones or edit them directly in the panel.
+
+**Q: How much does this cost?**  
+A: Depends on your API key and model. A batch of 100 assets with Claude Haiku costs a fraction of a cent. You pay only for what you use.
+
+**Q: Can I rename assets without AI?**  
+A: Not with this plugin — it's specifically designed for AI-powered suggestions. For manual renaming, use Unreal's native rename tools.
+
+**Q: Does this work with nested folders?**  
+A: Yes. Use **Load Folder...** and specify any `/Game/` sub-path. It will scan all assets in that folder and subfolders.
+
+**Q: Where does my API key go?**  
+A: Your API key is stored locally in your per-project user settings (`Saved/Config/`), never embedded in the plugin or project files. It is never sent to Epic or anyone else.
+
+---
+
+## Roadmap
+
+- [ ] Batch processing for large projects
+- [ ] Custom prefix configuration
+- [ ] Dry-run preview (see all changes without applying)
+- [ ] Undo last rename batch
+- [ ] Integration with naming validation tools
+
+---
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- 20+ asset type support
+- Claude and OpenAI provider support
+- One-click rename with preview
+- Configurable AI models
+- Local API key storage
+- Asset sanitization for valid names
+
+---
+
 ## Support
 
 - Issues and questions: https://github.com/theworld311/GTW_ProjectDoctor/issues

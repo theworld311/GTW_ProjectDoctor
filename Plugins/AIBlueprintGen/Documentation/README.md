@@ -37,7 +37,7 @@ The generated script is shown to you **before** anything executes, and nothing r
 
 - Only your **description, parent class and folder path** are sent to the AI provider — never project files or assets
 - You pay the provider directly through your own API key; a typical generation costs less than a cent
-- Default models: `claude-sonnet-4-6` (Claude) / `gpt-4o` (OpenAI) — configurable in **Project Settings → Plugins → AI Blueprint Generator**
+- Default models: `claude-opus-5` (Claude) / `gpt-4o` (OpenAI) — configurable in **Project Settings → Plugins → AI Blueprint Generator**
 
 ---
 
